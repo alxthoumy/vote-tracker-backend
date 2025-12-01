@@ -222,20 +222,21 @@ app.get('/api/stats', async (req, res) => {
     const { count: total } = await supabase
       .from('voters')
       .select('*', { count: 'exact', head: true });
-    
+
     // Get voted count
     const { count: voted } = await supabase
       .from('voters')
       .select('*', { count: 'exact', head: true })
       .eq('has_voted', true);
-    
-    // Get votes by religion
-    const { data: religionStats } = await supabase
+
+    // Get all voter data for breakdown stats
+    const { data: allVoters } = await supabase
       .from('voters')
-      .select('religion, has_voted');
-    
+      .select('religion, has_voted, family, classification');
+
+    // Stats by religion
     const byReligion = {};
-    religionStats?.forEach(voter => {
+    allVoters?.forEach(voter => {
       const rel = voter.religion || 'غير محدد';
       if (!byReligion[rel]) {
         byReligion[rel] = { total: 0, voted: 0 };
@@ -245,7 +246,33 @@ app.get('/api/stats', async (req, res) => {
         byReligion[rel].voted++;
       }
     });
-    
+
+    // Stats by classification
+    const byClassification = {};
+    allVoters?.forEach(voter => {
+      const classification = voter.classification || 'غير محدد';
+      if (!byClassification[classification]) {
+        byClassification[classification] = { total: 0, voted: 0 };
+      }
+      byClassification[classification].total++;
+      if (voter.has_voted) {
+        byClassification[classification].voted++;
+      }
+    });
+
+    // Stats by family
+    const byFamily = {};
+    allVoters?.forEach(voter => {
+      const family = voter.family || 'غير محدد';
+      if (!byFamily[family]) {
+        byFamily[family] = { total: 0, voted: 0 };
+      }
+      byFamily[family].total++;
+      if (voter.has_voted) {
+        byFamily[family].voted++;
+      }
+    });
+
     res.json({
       success: true,
       data: {
@@ -253,7 +280,9 @@ app.get('/api/stats', async (req, res) => {
         voted,
         notVoted: total - voted,
         percentage: total > 0 ? ((voted / total) * 100).toFixed(2) : 0,
-        byReligion
+        byReligion,
+        byClassification,
+        byFamily
       }
     });
   } catch (error) {
